@@ -1,4 +1,4 @@
-# tomato_arm_ik ROS 2
+# tomato_arm_ik
 
 Crane+ の簡易IK，Joy操作，Dynamixel AX MX系への位置指令送信用ROS 2パッケージ．
 
