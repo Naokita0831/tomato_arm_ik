@@ -6,7 +6,7 @@ Crane+ の簡易IK，Joy操作，Dynamixel AX MX系への位置指令送信用RO
 
 ```bash
 cd ~/colcon_ws/src
-unzip tomato_arm_ik_ros2.zip
+unzip tomato_arm_ik.zip
 cd ~/colcon_ws
 colcon build --packages-select tomato_arm_ik
 source install/setup.bash
