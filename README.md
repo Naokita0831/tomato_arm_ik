@@ -6,19 +6,13 @@ Crane+ の簡易IK，Joy操作，Dynamixel AX MX系への位置指令送信用RO
 
 ```bash
 cd ~/colcon_ws/src
-unzip tomato_arm_ik.zip
+git clone https://github.com/Naokita0831/tomato_arm_ik.git
 cd ~/colcon_ws
 colcon build --packages-select tomato_arm_ik
 source install/setup.bash
 ```
 
-## RViz + Joy only
-
-```bash
-ros2 launch tomato_arm_ik arm_ik_joy.launch.py
-```
-
-## Joy + Dynamixel
+## Joy + Dynamixel + RViz
 
 ```bash
 ros2 launch tomato_arm_ik crane_joy.launch.py dev:=/dev/ttyUSB0
