@@ -36,6 +36,13 @@ ament_target_dependencies(crane_control
   dynamixel_sdk
 )
 
+add_executable(crane_control_mx src/crane_control_mx.cpp)
+ament_target_dependencies(crane_control_mx
+  rclcpp
+  sensor_msgs
+  dynamixel_sdk
+)
+
 add_executable(ax_mx_joy src/ax_mx_joy.cpp)
 ament_target_dependencies(ax_mx_joy
   rclcpp
@@ -46,6 +53,7 @@ ament_target_dependencies(ax_mx_joy
 install(TARGETS
   arm_ik
   arm_ik_joy
+  crane_control
   crane_control
   ax_mx_joy
   DESTINATION lib/${PROJECT_NAME}

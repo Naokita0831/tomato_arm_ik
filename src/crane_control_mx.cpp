@@ -49,7 +49,7 @@ class CraneControlNode : public rclcpp::Node
 {
 public:
   CraneControlNode()
-  : Node("crane_control")
+  : Node("crane_control_mx")
   {
     dev_name_ = this->declare_parameter<std::string>("dev", "/dev/ttyUSB0");
 
