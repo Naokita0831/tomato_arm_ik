@@ -10,7 +10,11 @@ def generate_launch_description():
 
     model_arg = DeclareLaunchArgument(
         'model',
-        default_value=PathJoinSubstitution([pkg_share, 'urdf', 'arm.urdf']),
+        default_value=PathJoinSubstitution([
+            pkg_share,
+            'urdf',
+            'crane_plus.urdf.xacro',
+        ]),
         description='URDF or xacro file path',
     )
 
@@ -19,12 +23,20 @@ def generate_launch_description():
             FindExecutable(name='xacro'),
             ' ',
             LaunchConfiguration('model'),
+            ' ',
+            'use_gazebo:=false',
+            ' ',
+            'use_camera:=false',
+            ' ',
+            'use_mock_components:=true',
         ])
     }
 
     return LaunchDescription([
         model_arg,
+
         Node(package='joy', executable='joy_node', name='joy_node', output='screen'),
+
         Node(
             package='robot_state_publisher',
             executable='robot_state_publisher',
@@ -32,6 +44,7 @@ def generate_launch_description():
             output='screen',
             parameters=[robot_description],
         ),
+
         Node(
             package='tomato_arm_ik',
             executable='arm_ik_joy',
@@ -43,6 +56,7 @@ def generate_launch_description():
                 'publish_joint_states': True,
             }],
         ),
+        
         Node(
             package='rviz2',
             executable='rviz2',

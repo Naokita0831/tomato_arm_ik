@@ -17,7 +17,11 @@ def generate_launch_description():
 
     model_arg = DeclareLaunchArgument(
         'model',
-        default_value=PathJoinSubstitution([pkg_share, 'urdf', 'arm.urdf']),
+        default_value=PathJoinSubstitution([
+            pkg_share,
+            'urdf',
+            'crane_plus.urdf.xacro',
+        ]),
         description='URDF or xacro file path',
     )
 
@@ -32,6 +36,12 @@ def generate_launch_description():
             FindExecutable(name='xacro'),
             ' ',
             LaunchConfiguration('model'),
+            ' ',
+            'use_gazebo:=false',
+            ' ',
+            'use_camera:=false',
+            ' ',
+            'use_mock_components:=true',
         ])
     }
 

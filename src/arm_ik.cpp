@@ -9,8 +9,8 @@ class ArmIkDemoNode : public rclcpp::Node
 public:
   ArmIkDemoNode()
   : Node("arm_ik_node"),
-    arm_mock_(0.05f, 0.05f, 0.15f, 0.15f, 0.1f),
-    arm_solver_(0.05f, 0.05f, 0.15f, 0.15f, 0.1f)
+    arm_mock_(0.0454f, 0.026f, 0.083f, 0.0935f, 0.0473f),
+    arm_solver_(0.0454f, 0.026f, 0.083f, 0.0935f, 0.0473f)//linkの長さをここに入力
   {
     joint_state_pub_ = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 1);
     point_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("target_point", 1);
@@ -18,9 +18,7 @@ public:
     Angle4D init_angles;
     arm_smooth_.setCurrentAngles(init_angles);
 
-    timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(100),
-      std::bind(&ArmIkDemoNode::loop, this));
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&ArmIkDemoNode::loop, this));
   }
 
 private:

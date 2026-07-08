@@ -88,11 +88,11 @@ private:
   float arm4_angle_{0.0f};
   float arm5_angle_{0.0f};
 
-  std::string arm1_joint_name_{"joint1"};
-  std::string arm2_joint_name_{"joint2"};
-  std::string arm3_joint_name_{"joint3"};
-  std::string arm4_joint_name_{"joint4"};
-  std::string arm5_joint_name_{"joint5"};
+  std::string arm1_joint_name_{"crane_plus_joint1"};
+  std::string arm2_joint_name_{"crane_plus_joint2"};
+  std::string arm3_joint_name_{"crane_plus_joint3"};
+  std::string arm4_joint_name_{"crane_plus_joint4"};
+  std::string arm5_joint_name_{"crane_plus_joint_hand"};
 };
 
 class ArmSolver

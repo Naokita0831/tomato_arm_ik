@@ -16,12 +16,11 @@ class ArmIkJoyNode : public rclcpp::Node
 public:
   ArmIkJoyNode()
   : Node("arm_ik_joy"),
-    arm_mock_(0.05f, 0.05f, 0.15f, 0.15f, 0.1f),
-    arm_solver_(0.05f, 0.05f, 0.15f, 0.15f, 0.1f)
+    arm_mock_(0.0454f, 0.026f, 0.083f, 0.0935f, 0.0473f),
+    arm_solver_(0.0454f, 0.026f, 0.083f, 0.0935f, 0.0473f)//linkの長さをここに入力
   {
     publish_joint_states_ = this->declare_parameter<bool>("publish_joint_states", true);
-    trajectory_topic_ = this->declare_parameter<std::string>(
-      "trajectory_topic", "/crane_plus_arm_controller/joint_trajectory");
+    trajectory_topic_ = this->declare_parameter<std::string>("trajectory_topic", "/crane_plus_arm_controller/joint_trajectory");
     timer_period_ms_ = this->declare_parameter<int>("timer_period_ms", 50);
     trajectory_time_sec_ = this->declare_parameter<double>("trajectory_time_sec", 0.05);
 
@@ -29,38 +28,30 @@ public:
     point_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("target_point", 1);
     trajectory_pub_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(trajectory_topic_, 1);
 
-    joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
-      "joy", 1,
-      std::bind(&ArmIkJoyNode::joyCallback, this, std::placeholders::_1));
+    joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>("joy", 1, std::bind(&ArmIkJoyNode::joyCallback, this, std::placeholders::_1));
 
     target_point_.header.frame_id = "base_link";
-    target_point_.point.x = 0.2;
-    target_point_.point.y = 0.0;
-    target_point_.point.z = 0.3;
-    target_angle_ = 1.507f;
 
-    limit_ = static_cast<float>(M_PI * 105.0 / 180.0);
+    //初期姿勢
+    current_angles_.angle1 = 0.0f;
+    current_angles_.angle2 = 0.6f;
+    current_angles_.angle3 = -0.3f;
+    current_angles_.angle4 = -0.6f;
+    current_angles_.angle5 = 0.0f;
+    
+    //初期姿勢をもとに手先位置を算出
+    arm_mock_.setAngle(current_angles_);
+    target_point_.point = arm_mock_.getTargetPoint();
+    target_angle_ = current_angles_.angle2 + current_angles_.angle3 + current_angles_.angle4;
 
-    Angle4D init_angles;
-    if (arm_solver_.solve(target_point_.point, target_angle_, init_angles)) {
-      current_angles_ = init_angles;
-    } else {
-      current_angles_.angle1 = 0.0f;
-      current_angles_.angle2 = 0.4f;
-      current_angles_.angle3 = -0.8f;
-      current_angles_.angle4 = 0.4f;
-      current_angles_.angle5 = 0.0f;
-      RCLCPP_WARN(this->get_logger(), "Initial IK failed. Fallback angles are used.");
-    }
 
-    timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(timer_period_ms_),
-      std::bind(&ArmIkJoyNode::loop, this));
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(timer_period_ms_), std::bind(&ArmIkJoyNode::loop, this));
 
     RCLCPP_INFO(this->get_logger(), "arm_ik_joy started. publish to: %s", trajectory_topic_.c_str());
   }
 
 private:
+  //joyより値を受け取って手先目標位置更新料を作成
   void joyCallback(const sensor_msgs::msg::Joy & msg)
   {
     received_joy_ = true;
@@ -73,7 +64,7 @@ private:
     std::lock_guard<std::mutex> lock(cmd_mutex_);
     if (msg.axes.size() >= 5) {
       cmd_x_ = msg.axes[1] * gain_x;
-      cmd_y_ = msg.axes[0] * -gain_y;
+      cmd_y_ = msg.axes[0] * gain_y;
       cmd_z_ = msg.axes[3] * gain_z;
       cmd_rot_ = msg.axes[4] * gain_rot;
     }
@@ -98,6 +89,7 @@ private:
       cmd_rot = cmd_rot_;
     }
 
+    //目標手先位置姿勢を作成
     target_point_.header.stamp = this->now();
     target_point_.point.x += cmd_x;
     target_point_.point.y += cmd_y;
@@ -111,18 +103,11 @@ private:
       return;
     }
 
-    const float detJ = std::fabs(arm_solver_.jacobiDet(angles));
-    if (detJ < j_det_min) {
-      RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Too close to singular posture");
-      rollbackTarget(cmd_x, cmd_y, cmd_z, cmd_rot);
-      publishCurrentState();
-      return;
-    }
-
-    if (std::fabs(angles.angle1) > limit_ ||
-      std::fabs(angles.angle2) > limit_ ||
-      std::fabs(angles.angle3) > limit_ ||
-      std::fabs(angles.angle4) > limit_)
+    //角度上限化どうか判断
+    if (std::fabs(angles.angle1) > limit_upper_ || std::fabs(angles.angle1) < limit_lower_ ||
+        std::fabs(angles.angle2) > limit_upper_ || std::fabs(angles.angle2) < limit_lower_ ||
+        std::fabs(angles.angle3) > limit_upper_ || std::fabs(angles.angle3) < limit_lower_ ||
+        std::fabs(angles.angle4) > limit_upper_ || std::fabs(angles.angle4) < limit_lower_)
     {
       RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Too close to joint limit");
       rollbackTarget(cmd_x, cmd_y, cmd_z, cmd_rot);
@@ -163,7 +148,7 @@ private:
     trajectory_msgs::msg::JointTrajectory traj;
     traj.header.stamp = this->now();
     traj.joint_names = {
-      "joint1", "joint2", "joint3", "joint4", "joint5"
+      "crane_plus_joint1", "crane_plus_joint2", "crane_plus_joint3", "crane_plus_joint4", "crane_plus_joint_hand"
     };
 
     trajectory_msgs::msg::JointTrajectoryPoint pt;
@@ -190,7 +175,8 @@ private:
 
   geometry_msgs::msg::PointStamped target_point_;
   float target_angle_{0.0f};
-  float limit_{0.0f};
+  float limit_upper_{1.5f};
+  float limit_lower_{-1.5f};
   Angle4D current_angles_;
 
   bool publish_joint_states_{true};
