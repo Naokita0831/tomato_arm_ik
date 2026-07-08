@@ -13,6 +13,12 @@
 using namespace dynamixel;
 
 // AX-12A Protocol 1.0
+#define AX_ID_1                  1  
+#define AX_ID_2                  2
+#define AX_ID_3                  3
+#define AX_ID_4                  4
+#define AX_ID_5                  5
+
 #define ADDR_TORQUE_ENABLE_P1    24
 #define ADDR_GOAL_POSITION_P1    30
 #define ADDR_MOVING_SPEED_P1     32
@@ -32,9 +38,12 @@ public:
   : Node("crane_control")
   {
     dev_name_ = this->declare_parameter<std::string>("dev", "/dev/ttyUSB0");
+
+    //サーボの動作速度
     moving_speed_ = this->declare_parameter<int>("moving_speed", 180);
+
+    //１周期の最大角度変化量
     max_delta_rad_ = this->declare_parameter<double>("max_delta_rad", 0.015);
-    deadband_rad_ = this->declare_parameter<double>("deadband_rad", 0.02);
 
     port_handler_ = PortHandler::getPortHandler(dev_name_.c_str());
     packet_handler_ = PacketHandler::getPacketHandler(PROTOCOL_VERSION1);
@@ -119,16 +128,6 @@ private:
     }
   }
 
-  double applyDeadband(double rad, size_t index)
-  {
-    // joint1だけ0rad付近の微小振動を消す
-    if (index == 0 && std::fabs(rad) < deadband_rad_) {
-      return 0.0;
-    }
-
-    return rad;
-  }
-
   uint16_t radToAxPosition(double rad, size_t index)
   {
     double signed_rad = joint_sign_[index] * rad;
@@ -156,6 +155,7 @@ private:
 
   void jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg)
   {
+    //５関節分の値があるか確認
     if (msg->position.size() < dxl_ids_.size()) {
       RCLCPP_WARN_THROTTLE(
         this->get_logger(),
@@ -173,13 +173,14 @@ private:
       initialized_ = true;
     }
 
+    //前回送信の値を消去
     group_sync_write_->clearParam();
 
+    //各サーボに対して値を挿入
     for (size_t i = 0; i < dxl_ids_.size(); ++i) {
       double target_rad = msg->position[i];
 
-      target_rad = applyDeadband(target_rad, i);
-
+      //変更角度を制限
       double limited_rad = limitDelta(
         target_rad,
         prev_rad_[i],
@@ -194,6 +195,7 @@ private:
       param_goal_position[0] = DXL_LOBYTE(target_position);
       param_goal_position[1] = DXL_HIBYTE(target_position);
 
+      //各サーボに対して送る数値を保存
       bool addparam_result = group_sync_write_->addParam(
         dxl_ids_[i],
         param_goal_position
@@ -217,7 +219,7 @@ private:
         target_position
       );
     }
-
+    //まとめてサーボへ値を送信
     int result = group_sync_write_->txPacket();
 
     if (result != COMM_SUCCESS) {
@@ -232,15 +234,13 @@ private:
   std::string dev_name_;
   int moving_speed_;
   double max_delta_rad_;
-  double deadband_rad_;
 
   PortHandler * port_handler_{nullptr};
   PacketHandler * packet_handler_{nullptr};
   std::unique_ptr<GroupSyncWrite> group_sync_write_;
 
-  std::array<uint8_t, 5> dxl_ids_ = {1, 2, 3, 4, 5};
+  std::array<uint8_t, 5> dxl_ids_ = {AX_ID_1, AX_ID_2, AX_ID_3, AX_ID_4, AX_ID_5};
 
-  // joint1だけ逆方向にしている．違えば 1.0 に戻す
   std::array<double, 5> joint_sign_ = {
     1.0,
     1.0,
@@ -249,7 +249,6 @@ private:
     1.0
   };
 
-  // joint1の0rad位置がずれている場合は512.0を微調整する
   std::array<double, 5> joint_center_ = {
     512.0,
     512.0,
